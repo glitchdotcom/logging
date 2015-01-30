@@ -81,3 +81,4 @@ To use logging with your project simply:
 
     % go get github.com/fogcreek/logging
 
+copyright © 2015 Fog Creek Software, Inc.
