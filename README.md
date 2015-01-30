@@ -30,11 +30,11 @@ Levels are used to filter logging. There are five levels:
 
 By default INFO messages and above are allowed. Each logger can have a level. A method to set the default level is available, and actually sets the level on the default logger.
 
-logging.SetDefaultLogLevel(logging.INFO)
+    logging.SetDefaultLogLevel(logging.INFO)
 
 is equivalent to
 
-logging.DefaultLogger().SetLogLevel(logging.INFO)
+    logging.DefaultLogger().SetLogLevel(logging.INFO)
 
 Levels can also be set by tag, which overrides the loggers level. By default loggers use the default loggers level.
 
