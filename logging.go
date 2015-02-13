@@ -54,52 +54,40 @@ type Logger interface {
 }
 
 const (
-	stopped = 1
-	paused  = 2
-	running = 3
+	stopped = iota
+	paused
+	running
 )
 
 //logMutex is a global lock for protecting all global state in package
-var logMutex *sync.RWMutex
+var logMutex = new(sync.RWMutex)
 
 //defaultLogger is provided for most logging situations
 var defaultLogger *LoggerImpl
 
 //The default format is used to determine how appenders without a custom format log their messages
-var defaultFormatter LogFormatter
+var defaultFormatter = GetFormatter(FULL)
 
 //Loggers share the appenders
-var appenders []LogAppender
+var appenders = make([]LogAppender, 0)
 
 //The package maintains a map of named loggers
-var loggers map[string]*LoggerImpl
-
-var incomingChannel chan *LogRecord
-var stateChannel chan int
-var waiter *sync.WaitGroup
+var loggers = make(map[string]*LoggerImpl)
+var incomingChannel = make(chan *LogRecord, 2048)
+var stateChannel = make(chan int, 0)
+var waiter = new(sync.WaitGroup)
 var logged uint64
 var processed uint64
 var logErrors chan<- error
 var enableVerbose int32
 
 func init() {
-	logMutex = new(sync.RWMutex)
-
-	defaultFormatter = GetFormatter(FULL)
-
 	defaultLogger = new(LoggerImpl)
 	defaultLogger.name = "_default"
 	defaultLogger.level = INFO
 	defaultLogger.SetBufferLength(0)
 
-	appenders = make([]LogAppender, 0)
-	loggers = make(map[string]*LoggerImpl)
-
 	AddAppender(NewStdErrAppender())
-	waiter = new(sync.WaitGroup)
-	incomingChannel = make(chan *LogRecord, 2048)
-	stateChannel = make(chan int, 0)
-
 	AdaptStandardLogging(INFO, nil)
 
 	go processIncoming()

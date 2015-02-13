@@ -24,22 +24,22 @@ type LogAppender interface {
 //need to be closed when they will not be used anymore. An example
 //is a file appender.
 type ClosableAppender interface {
-	Close() error
+	LogAppender
+	io.Closer
 }
 
 //BaseLogAppender provides a simple struct for building log appenders.
 type BaseLogAppender struct {
+	m         sync.RWMutex
 	level     LogLevel
 	formatter LogFormatter
-	mutex     sync.RWMutex
 }
 
 //SetLevel stores the level in the BaseLogAppender struct
 func (appender *BaseLogAppender) SetLevel(l LogLevel) {
-	appender.mutex.Lock()
-	defer appender.mutex.Unlock()
-
+	appender.m.Lock()
 	appender.level = l
+	appender.m.Unlock()
 }
 
 func (appender *BaseLogAppender) checkLevel(l LogLevel) bool {
@@ -49,18 +49,17 @@ func (appender *BaseLogAppender) checkLevel(l LogLevel) bool {
 
 //CheckLevel tests the level in the BaseLogAppender struct
 func (appender *BaseLogAppender) CheckLevel(l LogLevel) bool {
-	appender.mutex.RLock()
-	defer appender.mutex.RUnlock()
+	appender.m.RLock()
+	defer appender.m.RUnlock()
 
 	return appender.checkLevel(l)
 }
 
 //SetFormatter stores the formatting function in the BaseLogAppender struct
 func (appender *BaseLogAppender) SetFormatter(formatter LogFormatter) {
-	appender.mutex.Lock()
-	defer appender.mutex.Unlock()
-
+	appender.m.Lock()
 	appender.formatter = formatter
+	appender.m.Unlock()
 }
 
 func (appender *BaseLogAppender) format(record *LogRecord) string {
@@ -82,9 +81,7 @@ type NullAppender struct {
 
 //NewNullAppender creates a null appender
 func NewNullAppender() *NullAppender {
-	appender := new(NullAppender)
-	appender.level = DEFAULT
-	return appender
+	return &NullAppender{}
 }
 
 //Log adds 1 to the count
@@ -106,9 +103,7 @@ type ErrorAppender struct {
 
 //NewErrorAppender creates an ErrorAppender
 func NewErrorAppender() *ErrorAppender {
-	appender := new(ErrorAppender)
-	appender.level = DEFAULT
-	return appender
+	return &ErrorAppender{}
 }
 
 //Log adds to the count and returns an error
@@ -120,42 +115,36 @@ func (appender *ErrorAppender) Log(record *LogRecord) error {
 //ConsoleAppender can be used to write log records to standard
 //err or standard out.
 type ConsoleAppender struct {
-	useStderr bool
+	useStdout bool
 	BaseLogAppender
 }
 
 //NewStdErrAppender creates a console appender configured to write to
 //standard err.
 func NewStdErrAppender() *ConsoleAppender {
-	appender := new(ConsoleAppender)
-	appender.level = DEFAULT
-	appender.useStderr = true
-	return appender
+	return &ConsoleAppender{}
 }
 
 //NewStdOutAppender creates a console appender configured to write to
 //standard out.
 func NewStdOutAppender() *ConsoleAppender {
-	appender := new(ConsoleAppender)
-	appender.level = DEFAULT
-	appender.useStderr = false
-	return appender
+	return &ConsoleAppender{useStdout: true}
 }
 
 //Log writes the record, if its level passes the appenders level
 //to stderr or stdout
 func (appender *ConsoleAppender) Log(record *LogRecord) error {
-	appender.mutex.Lock()
-	defer appender.mutex.Unlock()
+	appender.m.Lock()
+	defer appender.m.Unlock()
 
 	if !appender.checkLevel(record.Level) {
 		return nil
 	}
 
-	if appender.useStderr {
-		fmt.Fprintln(os.Stderr, appender.format(record))
-	} else {
+	if appender.useStdout {
 		fmt.Fprintln(os.Stdout, appender.format(record))
+	} else {
+		fmt.Fprintln(os.Stderr, appender.format(record))
 	}
 	return nil
 }
@@ -170,15 +159,14 @@ type MemoryAppender struct {
 //NewMemoryAppender creates a new empty memory appender
 func NewMemoryAppender() *MemoryAppender {
 	appender := new(MemoryAppender)
-	appender.level = DEFAULT
 	appender.LoggedMessages = make([]string, 0, 100)
 	return appender
 }
 
 //Log checks the log records level and if it passes appends the record to the list
 func (appender *MemoryAppender) Log(record *LogRecord) error {
-	appender.mutex.Lock()
-	defer appender.mutex.Unlock()
+	appender.m.Lock()
+	defer appender.m.Unlock()
 
 	if !appender.checkLevel(record.Level) {
 		return nil
@@ -190,8 +178,8 @@ func (appender *MemoryAppender) Log(record *LogRecord) error {
 
 //GetLoggedMessages returns the list of logged messages as strings.
 func (appender *MemoryAppender) GetLoggedMessages() []string {
-	appender.mutex.RLock()
-	defer appender.mutex.RUnlock()
+	appender.m.RLock()
+	defer appender.m.RUnlock()
 
 	return appender.LoggedMessages
 }
@@ -204,17 +192,14 @@ type WriterAppender struct {
 
 //NewWriterAppender creates an appender from the specified writer.
 func NewWriterAppender(writer io.Writer) *WriterAppender {
-	appender := new(WriterAppender)
-	appender.level = DEFAULT
-	appender.writer = writer
-	return appender
+	return &WriterAppender{writer: writer}
 }
 
 //Log checks the log record's level and then writes the formatted record
 //to the writer, followed by the bytes for "\n"
 func (appender *WriterAppender) Log(record *LogRecord) error {
-	appender.mutex.Lock()
-	defer appender.mutex.Unlock()
+	appender.m.Lock()
+	defer appender.m.Unlock()
 
 	if !appender.checkLevel(record.Level) {
 		return nil

@@ -6,20 +6,19 @@ import "strings"
 type LogLevel uint8
 
 const (
-	_ = iota // ignore first value by assigning to blank identifier
 	//DEFAULT is the default log level, loggers with default level will use the default loggers level
-	DEFAULT LogLevel = 1
+	DEFAULT LogLevel = iota
 	//VERBOSE is the wordiest log level, useful for very big text output that may
 	//be the last result during testing or debugging
-	VERBOSE LogLevel = 2
+	VERBOSE
 	//DEBUG is generally the lowest level used when testing
-	DEBUG LogLevel = 3
+	DEBUG
 	//INFO is used for generally helpful but not important messages
-	INFO LogLevel = 4
+	INFO
 	//WARN is provided for warnings that do not represent a major program error
-	WARN LogLevel = 5
+	WARN
 	//ERROR is the highest log level and should only be used for exceptional conditions
-	ERROR LogLevel = 6
+	ERROR
 )
 
 //String converts a log level to an upper case string
