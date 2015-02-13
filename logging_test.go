@@ -14,6 +14,7 @@ var count = 1
 
 func setup() (Logger, *MemoryAppender) {
 
+	SetDefaultLogLevel(INFO)
 	defaultLogger.SetBufferLength(0)
 	memoryAppender := NewMemoryAppender()
 	memoryAppender.SetFormatter(GetFormatter(MINIMAL))
@@ -88,6 +89,7 @@ func TestLevelFilteringDebug(t *testing.T) {
 	logger.Warn("warn")
 	logger.Info("info")
 	logger.Debug("debug")
+	logger.Verbosef("verbose")
 
 	WaitForIncoming()
 	assert.Equal(t, len(memory.GetLoggedMessages()), 4, "All messages at level DEBUG should be logged.")
@@ -97,6 +99,7 @@ func TestLevelFilteringVerbose(t *testing.T) {
 
 	logger, memory := setup()
 	logger.SetLogLevel(VERBOSE)
+	SetDefaultLogLevel(VERBOSE)
 
 	logger.Error("error")
 	logger.Warn("warn")
@@ -109,13 +112,19 @@ func TestLevelFilteringVerbose(t *testing.T) {
 
 	EnableVerboseLogging()
 	logger.Verbosef("verbose")
+	logger.VerboseWithTagsf([]string{"tag"}, "verbose")
+	Verbosef("verbose")
+	VerboseWithTagsf([]string{"tag"}, "verbose")
 	WaitForIncoming()
-	assert.Equal(t, len(memory.GetLoggedMessages()), 5, "verbose is on.")
+	assert.Equal(t, len(memory.GetLoggedMessages()), 8, "verbose is on.")
 
 	DisableVerboseLogging()
 	logger.Verbosef("verbose")
+	logger.VerboseWithTagsf([]string{"tag"}, "verbose")
+	Verbosef("verbose")
+	VerboseWithTagsf([]string{"tag"}, "verbose")
 	WaitForIncoming()
-	assert.Equal(t, len(memory.GetLoggedMessages()), 5, "verbose is off.")
+	assert.Equal(t, len(memory.GetLoggedMessages()), 8, "verbose is off.")
 }
 
 func TestTagLevelFilteringDebug(t *testing.T) {

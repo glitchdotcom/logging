@@ -516,23 +516,21 @@ func (logger *LoggerImpl) logwithformat(level LogLevel, tags []string, format st
 	}
 
 	now := time.Now()
-	msg := fmt.Sprintf(format, args...)
+	msg := ""
+
+	if format == "" {
+		msg = fmt.Sprint(args...)
+	} else {
+		msg = fmt.Sprintf(format, args...)
+	}
+
 	logRecord := NewLogRecord(logger, level, tags, msg, now, now)
 	atomic.AddUint64(&logged, 1)
 	incomingChannel <- logRecord
 }
 
 func (logger *LoggerImpl) log(level LogLevel, tags []string, args ...interface{}) {
-
-	if level == VERBOSE && atomic.LoadInt32(&enableVerbose) != 1 {
-		return
-	}
-
-	now := time.Now()
-	msg := fmt.Sprint(args...)
-	logRecord := NewLogRecord(logger, level, tags, msg, now, now)
-	atomic.AddUint64(&logged, 1)
-	incomingChannel <- logRecord
+	logger.logwithformat(level, tags, "", args...)
 }
 
 //ErrorWithTagsf logs an ERROR level message with the provided tags and formatted string.
