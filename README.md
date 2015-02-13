@@ -3,7 +3,7 @@ Logging is generally broken into two pieces: what to log and where to log it.
 These values are often specified by named loggers with formatters that specify the format of log messages,
 a level that specifies how much to log and some sort of target to specify where to log. The fog creek logging package for Go takes a slightly different approach based on our experience with real world logging.
 
-A default logger provides an easy path to logging. The logging package provides methods to directly log ot the default logger without accessing it
+A default logger provides an easy path to logging. The logging package provides methods to directly log to the default logger without accessing it
 
 	logging.Info("information message")
 
