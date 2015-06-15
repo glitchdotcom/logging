@@ -273,6 +273,85 @@ func TestFormatMethodsWithTags(t *testing.T) {
 	assert.Equal(t, memory.GetLoggedMessages()[7], "[DEBUG] [blit blat] one 1", "messages should be formatted")
 }
 
+func TestPanicLogging(t *testing.T) {
+	logger, memory := setup()
+	memory.SetFormatter(GetFormatter(MINIMALTAGGED))
+	logger.SetLogLevel(DEBUG)
+
+	tags := []string{"blit", "blat"}
+
+	defer func() {
+		rec := recover()
+		assert.NotNil(t, rec, "panic message")
+		assert.Equal(t, "panic", rec, "panic message")
+
+		assert.Equal(t, memory.GetLoggedMessages()[0], "[ERROR] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[1], "[ERROR] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[2], "[WARN] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[3], "[WARN] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[4], "[INFO] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[5], "[INFO] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[6], "[DEBUG] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[7], "[DEBUG] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[8], "[PANIC] [blit blat] panic", "unformatted messages should be unchanged")
+
+	}()
+
+	logger.ErrorWithTags(tags, "one")
+	logger.ErrorWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.WarnWithTags(tags, "one")
+	logger.WarnWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.InfoWithTags(tags, "one")
+	logger.InfoWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.DebugWithTags(tags, "one")
+	logger.DebugWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.PanicWithTags(tags, "panic")
+}
+
+func TestPanicFormatLogging(t *testing.T) {
+	logger, memory := setup()
+	memory.SetFormatter(GetFormatter(MINIMALTAGGED))
+	logger.SetLogLevel(DEBUG)
+
+	tags := []string{"blit", "blat"}
+
+	defer func() {
+
+		rec := recover()
+		assert.NotNil(t, rec, "panic message")
+		assert.Equal(t, "panic 1", rec, "panic message")
+
+		assert.Equal(t, memory.GetLoggedMessages()[0], "[ERROR] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[1], "[ERROR] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[2], "[WARN] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[3], "[WARN] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[4], "[INFO] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[5], "[INFO] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[6], "[DEBUG] [blit blat] one", "unformatted messages should be unchanged")
+		assert.Equal(t, memory.GetLoggedMessages()[7], "[DEBUG] [blit blat] one 1", "messages should be formatted")
+		assert.Equal(t, memory.GetLoggedMessages()[8], "[PANIC] [blit blat] panic 1", "messages should be formatted")
+
+	}()
+
+	logger.ErrorWithTags(tags, "one")
+	logger.ErrorWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.WarnWithTags(tags, "one")
+	logger.WarnWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.InfoWithTags(tags, "one")
+	logger.InfoWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.DebugWithTags(tags, "one")
+	logger.DebugWithTagsf(tags, "%v %v", "one", 1)
+
+	logger.PanicWithTagsf(tags, "%v %v", "panic", 1)
+}
+
 func TestFormatMethodsWithDefaultLogger(t *testing.T) {
 	_, memory := setup()
 	SetDefaultLogLevel(DEBUG)
@@ -410,7 +489,7 @@ func TestConcurrentLogging(t *testing.T) {
 
 	waiter.Wait()
 	WaitForIncoming()
-	assert.Equal(t, memory.Count(), count*concur, "All messages should be logged.")
+	assert.Equal(t, memory.Count(), int64(count*concur), "All messages should be logged.")
 }
 
 func TestStopStartLogging(t *testing.T) {
@@ -423,18 +502,18 @@ func TestStopStartLogging(t *testing.T) {
 	Error("error")
 
 	WaitForIncoming()
-	assert.Equal(t, memory.Count(), 1, "Only messages at level ERROR should be logged.")
+	assert.Equal(t, memory.Count(), int64(1), "Only messages at level ERROR should be logged.")
 
 	PauseLogging()
 
 	Error("error")
-	assert.Equal(t, memory.Count(), 1, "Only messages at level ERROR should be logged.")
+	assert.Equal(t, memory.Count(), int64(1), "Only messages at level ERROR should be logged.")
 
 	RestartLogging()
 
 	Error("error")
 	WaitForIncoming()
-	assert.Equal(t, memory.Count(), 3, "Only messages at level ERROR should be logged.")
+	assert.Equal(t, memory.Count(), int64(3), "Only messages at level ERROR should be logged.")
 }
 
 func TestConfigWhileStoppedLogging(t *testing.T) {
@@ -491,7 +570,7 @@ func TestErrorChannel(t *testing.T) {
 	assert.Equal(t, err.Error(), "error: debug", "errors should be pushed to the channel in order.")
 
 	WaitForIncoming()
-	assert.Equal(t, errorApp.Count(), 4, "All messages should be logged.")
+	assert.Equal(t, errorApp.Count(), int64(4), "All messages should be logged.")
 }
 
 func TestErrorChannelWontBlock(t *testing.T) {
@@ -519,5 +598,5 @@ func TestErrorChannelWontBlock(t *testing.T) {
 	}
 
 	WaitForIncoming()
-	assert.Equal(t, errorApp.Count(), 4, "All messages should be logged.")
+	assert.Equal(t, errorApp.Count(), int64(4), "All messages should be logged.")
 }

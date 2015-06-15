@@ -17,13 +17,17 @@ const (
 	INFO
 	//WARN is provided for warnings that do not represent a major program error
 	WARN
-	//ERROR is the highest log level and should only be used for exceptional conditions
+	//ERROR is should only be used for exceptional conditions
 	ERROR
+	//The highest log level only to be used when logging a panic
+	PANIC
 )
 
 //String converts a log level to an upper case string
 func (level LogLevel) String() string {
 	switch {
+	case level >= PANIC:
+		return "PANIC"
 	case level >= ERROR:
 		return "ERROR"
 	case level >= WARN:
@@ -45,6 +49,8 @@ func LevelFromString(str string) LogLevel {
 	str = strings.ToLower(str)
 
 	switch str {
+	case "panic":
+		return PANIC
 	case "error":
 		return ERROR
 	case "warning", "warn":

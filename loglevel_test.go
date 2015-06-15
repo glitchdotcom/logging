@@ -11,14 +11,15 @@ func TestLevelToString(t *testing.T) {
 	assert.Equal(t, INFO.String(), "INFO", "INFO.String() = %v, want %v", INFO, "INFO")
 	assert.Equal(t, WARN.String(), "WARN", "WARN.String() = %v, want %v", WARN, "WARN")
 	assert.Equal(t, ERROR.String(), "ERROR", "ERROR.String() = %v, want %v", ERROR, "ERROR")
+	assert.Equal(t, PANIC.String(), "PANIC", "PANIC.String() = %v, want %v", PANIC, "PANIC")
 	assert.Equal(t, VERBOSE.String(), "VERBOSE", "VERBOSE.String() = %v, want %v", VERBOSE, "VERBOSE")
 	assert.Equal(t, LogLevel(0).String(), "VERBOSE", "VERBOSE.String() = %v, want %v", VERBOSE, "VERBOSE")
 }
 
 func TestFromString(t *testing.T) {
 
-	levelStrings := []string{"debug", "Debug", "warn", "Warning", "error", "INFO", "Informative", "verBose", "none"}
-	levels := []LogLevel{DEBUG, DEBUG, WARN, WARN, ERROR, INFO, INFO, VERBOSE, DEFAULT}
+	levelStrings := []string{"debug", "Debug", "warn", "Warning", "error", "Panic", "INFO", "Informative", "verBose", "none"}
+	levels := []LogLevel{DEBUG, DEBUG, WARN, WARN, ERROR, PANIC, INFO, INFO, VERBOSE, DEFAULT}
 
 	for i, levelString := range levelStrings {
 		level := levels[i]
