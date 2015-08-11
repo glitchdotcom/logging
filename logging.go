@@ -18,6 +18,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"strings"
 )
 
 //Logger is the interface for the objects that are the target of logging messages. Logging methods
@@ -539,6 +540,13 @@ func (logger *LoggerImpl) logwithformat(level LogLevel, tags []string, format st
 		msg = fmt.Sprint(args...)
 	} else {
 		msg = fmt.Sprintf(format, args...)
+	}
+
+	if level == PANIC {
+		stack := make([]byte, 10 * 1024)
+		size := runtime.Stack(stack, false)
+		stackStr := strings.Replace(string(stack[:size]), "\n", "\n  ", -1)
+		msg = msg + "\n  " + stackStr
 	}
 
 	logRecord := NewLogRecord(logger, level, tags, msg, now, now)

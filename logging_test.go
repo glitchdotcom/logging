@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -293,7 +294,14 @@ func TestPanicLogging(t *testing.T) {
 		assert.Equal(t, memory.GetLoggedMessages()[5], "[INFO] [blit blat] one 1", "messages should be formatted")
 		assert.Equal(t, memory.GetLoggedMessages()[6], "[DEBUG] [blit blat] one", "unformatted messages should be unchanged")
 		assert.Equal(t, memory.GetLoggedMessages()[7], "[DEBUG] [blit blat] one 1", "messages should be formatted")
-		assert.Equal(t, memory.GetLoggedMessages()[8], "[PANIC] [blit blat] panic", "unformatted messages should be unchanged")
+
+		msgWithStack := strings.Split(memory.GetLoggedMessages()[8], "\n")
+
+		assert.Equal(t, msgWithStack[0], "[PANIC] [blit blat] panic", "unformatted messages should be unchanged")
+		assert.True(t, len(msgWithStack) > 1, "panic messages should include stack trace")
+		for i := 1; i < len(msgWithStack); i++ {
+			assert.Equal(t, "  ", msgWithStack[i][0:2], "every stack trace line should be indented two spaces")
+		}
 
 	}()
 
@@ -333,8 +341,14 @@ func TestPanicFormatLogging(t *testing.T) {
 		assert.Equal(t, memory.GetLoggedMessages()[5], "[INFO] [blit blat] one 1", "messages should be formatted")
 		assert.Equal(t, memory.GetLoggedMessages()[6], "[DEBUG] [blit blat] one", "unformatted messages should be unchanged")
 		assert.Equal(t, memory.GetLoggedMessages()[7], "[DEBUG] [blit blat] one 1", "messages should be formatted")
-		assert.Equal(t, memory.GetLoggedMessages()[8], "[PANIC] [blit blat] panic 1", "messages should be formatted")
 
+		msgWithStack := strings.Split(memory.GetLoggedMessages()[8], "\n")
+
+		assert.Equal(t, msgWithStack[0], "[PANIC] [blit blat] panic 1", "messages should be formatted")
+		assert.True(t, len(msgWithStack) > 1, "panic messages should include stack trace")
+		for i := 1; i < len(msgWithStack); i++ {
+			assert.Equal(t, "  ", msgWithStack[i][0:2], "every stack trace line should be indented two spaces")
+		}
 	}()
 
 	logger.ErrorWithTags(tags, "one")
