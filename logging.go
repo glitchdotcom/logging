@@ -18,11 +18,17 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"strings"
 )
 
 //Logger is the interface for the objects that are the target of logging messages. Logging methods
 //imply a level. For example, Info() implies a level of LogLevel.INFO.
 type Logger interface {
+	PanicWithTagsf(tags []string, fmt string, args ...interface{})
+	PanicWithTags(tags []string, args ...interface{})
+	Panicf(fmt string, args ...interface{})
+	Panic(args ...interface{})
+
 	ErrorWithTagsf(tags []string, fmt string, args ...interface{})
 	ErrorWithTags(tags []string, args ...interface{})
 	Errorf(fmt string, args ...interface{})
@@ -177,6 +183,18 @@ func WaitForIncoming() {
 	for {
 		if atomic.LoadUint64(&processed) != atomic.LoadUint64(&logged) {
 			time.Sleep(2 * time.Millisecond)
+		} else {
+			return
+		}
+	}
+}
+
+//Waits for the specific log to be processed
+func WaitForProcessed(logNum uint64) {
+	runtime.Gosched() //start by giving the other go routines a chance to run
+	for {
+		if logNum != atomic.LoadUint64(&processed) {
+			time.Sleep(1 * time.Millisecond)
 		} else {
 			return
 		}
@@ -509,10 +527,10 @@ func (logger *LoggerImpl) flushBuffer(wait *sync.WaitGroup) {
 	}
 }
 
-func (logger *LoggerImpl) logwithformat(level LogLevel, tags []string, format string, args ...interface{}) {
+func (logger *LoggerImpl) logwithformat(level LogLevel, tags []string, format string, args ...interface{}) uint64 {
 
 	if level == VERBOSE && atomic.LoadInt32(&enableVerbose) != 1 {
-		return
+		return 0
 	}
 
 	now := time.Now()
@@ -524,13 +542,123 @@ func (logger *LoggerImpl) logwithformat(level LogLevel, tags []string, format st
 		msg = fmt.Sprintf(format, args...)
 	}
 
+	if level == PANIC {
+		stack := make([]byte, 10 * 1024)
+		size := runtime.Stack(stack, false)
+		stackStr := strings.Replace(string(stack[:size]), "\n", "\n  ", -1)
+		msg = msg + "\n  " + stackStr
+	}
+
 	logRecord := NewLogRecord(logger, level, tags, msg, now, now)
-	atomic.AddUint64(&logged, 1)
+	logNum := atomic.AddUint64(&logged, 1)
 	incomingChannel <- logRecord
+
+	//return the logged number to track if it was processed
+	return logNum
 }
 
-func (logger *LoggerImpl) log(level LogLevel, tags []string, args ...interface{}) {
-	logger.logwithformat(level, tags, "", args...)
+func (logger *LoggerImpl) log(level LogLevel, tags []string, args ...interface{}) uint64{
+	return logger.logwithformat(level, tags, "", args...)
+}
+
+//PanicWithTagsf logs a PANIC level message with the provided tags and formatted string.
+func (logger *LoggerImpl) PanicWithTagsf(tags []string, format string, args ...interface{}) {
+	logNum := logger.logwithformat(PANIC, tags, format, args...)
+
+	//ensure the panic message we just logged gets processed
+	WaitForProcessed(logNum)
+
+	//flush all logs before panicking
+	logMutex.Lock()
+	wait := new(sync.WaitGroup)
+	if logger == defaultLogger {
+		flushAllLoggers(wait)
+	} else {
+		wait.Add(1)
+		logger.flushBuffer(wait)
+	}
+	logMutex.Unlock()
+	wait.Wait()
+
+	//continue with the panic
+	if format == "" {
+		panic(fmt.Sprint(args...))
+	} else {
+		panic(fmt.Sprintf(format, args...))
+	}
+}
+
+//PanicWithTags logs a PANIC level message with the provided tags and provided arguments joined into a string.
+func (logger *LoggerImpl) PanicWithTags(tags []string, args ...interface{}) {
+	logNum := logger.log(PANIC, tags, args...)
+
+	//ensure the panic message we just logged gets processed
+	WaitForProcessed(logNum)
+
+	//flush all logs before panicking
+	logMutex.Lock()
+	wait := new(sync.WaitGroup)
+	if logger == defaultLogger {
+		flushAllLoggers(wait)
+	} else {
+		wait.Add(1)
+		logger.flushBuffer(wait)
+	}
+	logMutex.Unlock()
+	wait.Wait()
+
+	//continue with panic
+	panic(fmt.Sprint(args...))
+}
+
+//Panicf logs a PANIC level message with the no tags and formatted string.
+func (logger *LoggerImpl) Panicf(format string, args ...interface{}) {
+	logNum := logger.logwithformat(PANIC, nil, format, args...)
+
+	//ensure the panic message we just logged gets processed
+	WaitForProcessed(logNum)
+
+	//flush all logs before panicking
+	logMutex.Lock()
+	wait := new(sync.WaitGroup)
+	if logger == defaultLogger {
+		flushAllLoggers(wait)
+	} else {
+		wait.Add(1)
+		logger.flushBuffer(wait)
+	}
+	logMutex.Unlock()
+	wait.Wait()
+
+	//continue with the panic
+	if format == "" {
+		panic(fmt.Sprint(args...))
+	} else {
+		panic(fmt.Sprintf(format, args...))
+	}
+}
+
+//Panic logs a PANIC level message with no tags and provided arguments joined into a string.
+func (logger *LoggerImpl) Panic(args ...interface{}) {
+	logNum := logger.log(PANIC, nil, args...)
+
+	//ensure the panic message we just logged gets processed
+	WaitForProcessed(logNum)
+
+	//flush all logs before panicking
+	logMutex.Lock()
+	wait := new(sync.WaitGroup)
+	if logger == defaultLogger {
+		flushAllLoggers(wait)
+	} else {
+		wait.Add(1)
+		logger.flushBuffer(wait)
+	}
+	logMutex.Unlock()
+	wait.Wait()
+
+	//continue with the panic
+	panic(fmt.Sprint(args...))
 }
 
 //ErrorWithTagsf logs an ERROR level message with the provided tags and formatted string.
